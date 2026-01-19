@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 
-import { HomeScreen, RecommendationScreen, MyCardsScreen } from './src/screens';
+import { HomeScreen, RecommendationScreen, MyCardsScreen, OnboardingScreen } from './src/screens';
+import { isOnboardingComplete, setOnboardingComplete } from './src/services/onboardingService';
+import { CardProvider } from './src/context/CardContext';
 
 type RootStackParamList = {
   MainTabs: undefined;
@@ -22,22 +24,26 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
 const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => {
+  const color = focused ? '#3B82F6' : '#555';
+
   const getIcon = () => {
     switch (name) {
-      case 'Tap':
+      case 'Find':
         return (
-          <View style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-            <View style={styles.nfcIconSmall}>
-              <View style={[styles.nfcWaveSmall, focused && styles.nfcWaveFocused]} />
+          <View style={styles.tabIconWrapper}>
+            {/* Dollar sign with signal waves */}
+            <View style={[styles.findIcon, focused && styles.findIconFocused]}>
+              <Text style={[styles.dollarText, { color }]}>$</Text>
             </View>
           </View>
         );
-      case 'My Cards':
+      case 'Cards':
         return (
-          <View style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-            <View style={[styles.cardIconSmall, focused && styles.cardIconFocused]}>
-              <View style={[styles.cardLine, focused && styles.cardLineFocused]} />
-              <View style={[styles.cardLine, focused && styles.cardLineFocused]} />
+          <View style={styles.tabIconWrapper}>
+            {/* Stacked cards icon */}
+            <View style={styles.walletIcon}>
+              <View style={[styles.walletCard, styles.walletCardBack, { borderColor: color }]} />
+              <View style={[styles.walletCard, styles.walletCardFront, { borderColor: color, backgroundColor: focused ? 'rgba(59,130,246,0.15)' : 'transparent' }]} />
             </View>
           </View>
         );
@@ -49,7 +55,7 @@ const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => {
   return (
     <View style={styles.tabContainer}>
       {getIcon()}
-      <Text style={[styles.tabLabel, focused && styles.tabLabelFocused]}>
+      <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>
         {name}
       </Text>
     </View>
@@ -65,9 +71,9 @@ const MainTabs = () => {
           backgroundColor: '#000',
           borderTopColor: '#1a1a1a',
           borderTopWidth: 1,
-          height: 85,
-          paddingBottom: 25,
-          paddingTop: 10,
+          height: 88,
+          paddingBottom: 28,
+          paddingTop: 12,
         },
         tabBarShowLabel: false,
       }}
@@ -76,7 +82,7 @@ const MainTabs = () => {
         name="Home"
         component={HomeScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon name="Tap" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name="Find" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -84,7 +90,7 @@ const MainTabs = () => {
         component={MyCardsScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="My Cards" focused={focused} />
+            <TabIcon name="Cards" focused={focused} />
           ),
         }}
       />
@@ -93,9 +99,47 @@ const MainTabs = () => {
 };
 
 export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    checkOnboarding();
+  }, []);
+
+  const checkOnboarding = async () => {
+    const complete = await isOnboardingComplete();
+    setShowOnboarding(!complete);
+    setIsLoading(false);
+  };
+
+  const handleOnboardingComplete = async () => {
+    await setOnboardingComplete();
+    setShowOnboarding(false);
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
+    );
+  }
+
+  if (showOnboarding) {
+    return (
+      <SafeAreaProvider>
+        <CardProvider>
+          <StatusBar style="light" />
+          <OnboardingScreen onComplete={handleOnboardingComplete} />
+        </CardProvider>
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
-      <NavigationContainer
+      <CardProvider>
+        <NavigationContainer
         theme={{
           dark: true,
           fonts: {
@@ -143,72 +187,76 @@ export default function App() {
             }}
           />
         </Stack.Navigator>
-      </NavigationContainer>
+        </NavigationContainer>
+      </CardProvider>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tabContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    paddingTop: 4,
+    minWidth: 70,
   },
-  tabIcon: {
-    width: 40,
-    height: 40,
+  tabIconWrapper: {
+    width: 44,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
-    backgroundColor: 'transparent',
-  },
-  tabIconFocused: {
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
   },
   tabLabel: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 4,
-    fontWeight: '500',
+    fontSize: 10,
+    marginTop: 6,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    textAlign: 'center',
   },
-  tabLabelFocused: {
-    color: '#3B82F6',
-  },
-  nfcIconSmall: {
-    width: 24,
-    height: 24,
+  // Find tab icon
+  findIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#555',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  nfcWaveSmall: {
-    width: 16,
+  findIconFocused: {
+    borderColor: '#3B82F6',
+    backgroundColor: 'rgba(59,130,246,0.1)',
+  },
+  dollarText: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  // Wallet tab icon
+  walletIcon: {
+    width: 28,
+    height: 22,
+    position: 'relative',
+  },
+  walletCard: {
+    position: 'absolute',
+    width: 24,
     height: 16,
-    borderTopWidth: 2,
-    borderRightWidth: 2,
-    borderColor: '#6B7280',
-    borderTopRightRadius: 16,
-    transform: [{ rotate: '45deg' }],
-  },
-  nfcWaveFocused: {
-    borderColor: '#3B82F6',
-  },
-  cardIconSmall: {
-    width: 20,
-    height: 14,
     borderWidth: 2,
-    borderColor: '#6B7280',
-    borderRadius: 3,
-    padding: 2,
-    justifyContent: 'space-between',
+    borderRadius: 4,
   },
-  cardIconFocused: {
-    borderColor: '#3B82F6',
+  walletCardBack: {
+    top: 0,
+    left: 0,
+    opacity: 0.5,
   },
-  cardLine: {
-    height: 2,
-    backgroundColor: '#6B7280',
-    borderRadius: 1,
-  },
-  cardLineFocused: {
-    backgroundColor: '#3B82F6',
+  walletCardFront: {
+    bottom: 0,
+    right: 0,
   },
 });

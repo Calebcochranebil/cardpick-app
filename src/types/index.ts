@@ -9,6 +9,20 @@ export type MCCCategory =
   | 'streaming'
   | 'transit'
   | 'online_shopping'
+  | 'flights'
+  | 'hotels'
+  | 'car_rental'
+  | 'amazon'
+  | 'costco'
+  | 'target'
+  | 'whole_foods'
+  | 'rotating'
+  | 'mobile_wallet'
+  | 'office_supplies'
+  | 'shipping'
+  | 'advertising'
+  | 'ev_charging'
+  | 'fitness'
   | 'other';
 
 export interface RewardStructure {
@@ -30,6 +44,10 @@ export interface CreditCard {
   color: string;
   gradientColors: [string, string];
   logoUrl?: string;
+  // Affiliate/signup bonus fields
+  signupBonus?: string;
+  signupBonusValue?: number;
+  affiliateUrl?: string;
 }
 
 export interface Merchant {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { CreditCard } from '../components';
 import { CreditCard as CreditCardType } from '../types';
-import { CREDIT_CARDS, getCardById } from '../data/cards';
+import { useCards } from '../context/CardContext';
 import {
   getUserCardIds,
   addCard,
@@ -19,9 +20,13 @@ import {
   resetToDefaults,
 } from '../services/userCardsService';
 
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = width * 0.7;
+
 export const MyCardsScreen: React.FC = () => {
   const [userCardIds, setUserCardIds] = useState<string[]>([]);
   const [showAllCards, setShowAllCards] = useState(false);
+  const { cards, getCardById } = useCards();
 
   const loadUserCards = useCallback(async () => {
     const cardIds = await getUserCardIds();
@@ -84,9 +89,20 @@ export const MyCardsScreen: React.FC = () => {
     .map((id) => getCardById(id))
     .filter((card): card is CreditCardType => card !== undefined);
 
-  const availableCards = CREDIT_CARDS.filter(
+  const availableCards = cards.filter(
     (card) => !userCardIds.includes(card.id)
   );
+
+  // Group available cards by issuer
+  const groupedCards = availableCards.reduce((acc, card) => {
+    if (!acc[card.issuer]) {
+      acc[card.issuer] = [];
+    }
+    acc[card.issuer].push(card);
+    return acc;
+  }, {} as Record<string, CreditCardType[]>);
+
+  const issuers = Object.keys(groupedCards).sort();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -95,56 +111,102 @@ export const MyCardsScreen: React.FC = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>My Wallet</Text>
           <Text style={styles.subtitle}>
-            {userCards.length} card{userCards.length !== 1 ? 's' : ''} in wallet
+            {userCards.length} card{userCards.length !== 1 ? 's' : ''} added
           </Text>
         </View>
 
+        {/* User's Cards - Horizontal Scroll */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>YOUR CARDS</Text>
           {userCards.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No cards in wallet</Text>
+              <View style={styles.emptyIcon}>
+                <Text style={styles.emptyIconText}>+</Text>
+              </View>
+              <Text style={styles.emptyText}>No cards yet</Text>
               <Text style={styles.emptySubtext}>
-                Add cards below to get started
+                Add your credit cards below
               </Text>
             </View>
           ) : (
-            userCards.map((card) => (
-              <TouchableOpacity
-                key={card.id}
-                style={styles.cardWrapper}
-                onLongPress={() => handleRemoveCard(card.id)}
-                activeOpacity={0.9}
-              >
-                <CreditCard card={card} size="medium" />
-                <View style={styles.cardActions}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.cardsScrollContent}
+              decelerationRate="fast"
+              snapToInterval={CARD_WIDTH + 12}
+            >
+              {userCards.map((card) => (
+                <View key={card.id} style={styles.cardItem}>
+                  <CreditCard card={card} size="small" />
                   <TouchableOpacity
-                    style={styles.removeButton}
+                    style={styles.removeChip}
                     onPress={() => handleRemoveCard(card.id)}
                   >
-                    <Text style={styles.removeButtonText}>Remove</Text>
+                    <Text style={styles.removeChipText}>Remove</Text>
                   </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
-            ))
+              ))}
+            </ScrollView>
           )}
         </View>
 
+        {/* Add Cards Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>ADD CARDS</Text>
-            <TouchableOpacity onPress={() => setShowAllCards(!showAllCards)}>
+            <TouchableOpacity
+              style={styles.toggleButton}
+              onPress={() => setShowAllCards(!showAllCards)}
+            >
               <Text style={styles.toggleText}>
-                {showAllCards ? 'Show Less' : 'Show All'}
+                {showAllCards ? 'Less' : `All ${availableCards.length}`}
               </Text>
             </TouchableOpacity>
           </View>
 
-          {(showAllCards ? availableCards : availableCards.slice(0, 4)).map(
-            (card) => (
+          {showAllCards ? (
+            // Grouped view by issuer
+            issuers.map((issuer) => (
+              <View key={issuer} style={styles.issuerGroup}>
+                <Text style={styles.issuerName}>{issuer}</Text>
+                {groupedCards[issuer].map((card) => (
+                  <TouchableOpacity
+                    key={card.id}
+                    style={styles.addCardRow}
+                    onPress={() => handleAddCard(card.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.addCardInfo}>
+                      <View
+                        style={[
+                          styles.cardColorBar,
+                          { backgroundColor: card.gradientColors[0] },
+                        ]}
+                      />
+                      <View style={styles.cardTextInfo}>
+                        <Text style={styles.addCardName}>{card.name}</Text>
+                        <Text style={styles.addCardDetails}>
+                          {card.annualFee === 0 ? 'No AF' : `$${card.annualFee}/yr`}
+                          {'  •  '}
+                          {card.baseReward}x {card.rewardType}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.addButton}>
+                      <Text style={styles.addButtonText}>+</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))
+          ) : (
+            // Simple list of first 6 cards
+            availableCards.slice(0, 6).map((card) => (
               <TouchableOpacity
                 key={card.id}
                 style={styles.addCardRow}
@@ -154,19 +216,18 @@ export const MyCardsScreen: React.FC = () => {
                 <View style={styles.addCardInfo}>
                   <View
                     style={[
-                      styles.cardColorDot,
+                      styles.cardColorBar,
                       { backgroundColor: card.gradientColors[0] },
                     ]}
                   />
-                  <View>
+                  <View style={styles.cardTextInfo}>
                     <Text style={styles.addCardName}>
                       {card.issuer} {card.name}
                     </Text>
                     <Text style={styles.addCardDetails}>
-                      {card.annualFee === 0
-                        ? 'No annual fee'
-                        : `$${card.annualFee}/year`}{' '}
-                      {card.baseReward}x base {card.rewardType}
+                      {card.annualFee === 0 ? 'No AF' : `$${card.annualFee}/yr`}
+                      {'  •  '}
+                      {card.baseReward}x {card.rewardType}
                     </Text>
                   </View>
                 </View>
@@ -174,12 +235,13 @@ export const MyCardsScreen: React.FC = () => {
                   <Text style={styles.addButtonText}>+</Text>
                 </View>
               </TouchableOpacity>
-            )
+            ))
           )}
         </View>
 
+        {/* Reset Button */}
         <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-          <Text style={styles.resetButtonText}>Reset to Default Cards</Text>
+          <Text style={styles.resetButtonText}>Reset to Defaults</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -195,17 +257,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   header: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 8,
   },
   title: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '800',
     color: '#fff',
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
@@ -213,36 +276,61 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
+    marginTop: 28,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    paddingHorizontal: 20,
+    marginBottom: 14,
   },
   sectionTitle: {
     color: '#6B7280',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: 1.5,
-    marginBottom: 12,
+    paddingHorizontal: 20,
+    marginBottom: 14,
+  },
+  toggleButton: {
+    backgroundColor: '#1a1a1a',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   toggleText: {
     color: '#3B82F6',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
   emptyState: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 32,
+    backgroundColor: '#0f0f0f',
+    borderRadius: 16,
+    padding: 40,
     alignItems: 'center',
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: '#1a1a1a',
+    borderStyle: 'dashed',
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1a1a1a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyIconText: {
+    color: '#3B82F6',
+    fontSize: 28,
+    fontWeight: '300',
   },
   emptyText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
   },
   emptySubtext: {
@@ -250,46 +338,61 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
-  cardWrapper: {
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  cardActions: {
-    flexDirection: 'row',
-    marginTop: 8,
-  },
-  removeButton: {
-    backgroundColor: '#1a1a1a',
+  cardsScrollContent: {
     paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#EF4444',
+    gap: 12,
   },
-  removeButtonText: {
+  cardItem: {
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  removeChip: {
+    marginTop: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  removeChipText: {
     color: '#EF4444',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  issuerGroup: {
+    marginBottom: 20,
+  },
+  issuerName: {
+    color: '#9CA3AF',
     fontSize: 13,
     fontWeight: '600',
+    paddingHorizontal: 20,
+    marginBottom: 10,
   },
   addCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
+    backgroundColor: '#111',
+    marginHorizontal: 20,
+    borderRadius: 14,
     padding: 14,
-    marginBottom: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#1a1a1a',
   },
   addCardInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  cardColorDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
+  cardColorBar: {
+    width: 4,
+    height: 36,
+    borderRadius: 2,
+    marginRight: 14,
+  },
+  cardTextInfo: {
+    flex: 1,
   },
   addCardName: {
     color: '#fff',
@@ -299,26 +402,26 @@ const styles = StyleSheet.create({
   addCardDetails: {
     color: '#6B7280',
     fontSize: 12,
-    marginTop: 2,
+    marginTop: 3,
   },
   addButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#3B82F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   addButtonText: {
     color: '#fff',
-    fontSize: 20,
-    fontWeight: '600',
-    lineHeight: 22,
+    fontSize: 22,
+    fontWeight: '500',
+    marginTop: -2,
   },
   resetButton: {
     marginTop: 32,
-    marginHorizontal: 16,
-    backgroundColor: '#1f1f1f',
+    marginHorizontal: 20,
+    backgroundColor: 'transparent',
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
@@ -326,7 +429,7 @@ const styles = StyleSheet.create({
     borderColor: '#333',
   },
   resetButtonText: {
-    color: '#9CA3AF',
+    color: '#6B7280',
     fontSize: 14,
     fontWeight: '500',
   },

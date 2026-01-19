@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,17 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
+  Switch,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
+import {
+  startBackgroundLocationTracking,
+  stopBackgroundLocationTracking,
+  isBackgroundTrackingActive,
+} from '../services/geofencingService';
 
 type RootStackParamList = {
   Home: undefined;
@@ -23,12 +31,51 @@ type HomeScreenProps = {
 const { width, height } = Dimensions.get('window');
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
+  const [smartNotificationsEnabled, setSmartNotificationsEnabled] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0.3)).current;
   const ringAnim1 = useRef(new Animated.Value(0)).current;
   const ringAnim2 = useRef(new Animated.Value(0)).current;
   const ringAnim3 = useRef(new Animated.Value(0)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
+
+  // Check if background tracking is active on screen focus
+  useFocusEffect(
+    useCallback(() => {
+      const checkTrackingStatus = async () => {
+        const isActive = await isBackgroundTrackingActive();
+        setSmartNotificationsEnabled(isActive);
+      };
+      checkTrackingStatus();
+    }, [])
+  );
+
+  const handleToggleSmartNotifications = async (value: boolean) => {
+    setIsLoading(true);
+    try {
+      if (value) {
+        const started = await startBackgroundLocationTracking();
+        if (started) {
+          setSmartNotificationsEnabled(true);
+        } else {
+          Alert.alert(
+            'Permission Required',
+            'Stax needs "Always" location permission to send smart notifications when you arrive at stores. Please enable it in your device settings.',
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        await stopBackgroundLocationTracking();
+        setSmartNotificationsEnabled(false);
+      }
+    } catch (error) {
+      console.error('Error toggling smart notifications:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Subtle pulse animation for main button
@@ -144,8 +191,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>CardPick</Text>
-            <Text style={styles.subtitle}>Maximize your rewards</Text>
+            <Text style={styles.title}>Stax</Text>
+            <Text style={styles.subtitle}>Stop leaving money on the table</Text>
           </View>
         </View>
 
@@ -196,15 +243,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </Animated.View>
         </View>
 
-        {/* Footer */}
+        {/* Footer - Smart Notifications Toggle */}
         <View style={styles.footer}>
-          <View style={styles.demoBadge}>
-            <View style={styles.demoDot} />
-            <Text style={styles.demoText}>Demo Mode</Text>
+          <View style={styles.smartNotificationCard}>
+            <View style={styles.smartNotificationInfo}>
+              <Text style={styles.smartNotificationTitle}>Smart Notifications</Text>
+              <Text style={styles.smartNotificationDesc}>
+                Get notified which card to use when you arrive at stores
+              </Text>
+            </View>
+            <Switch
+              value={smartNotificationsEnabled}
+              onValueChange={handleToggleSmartNotifications}
+              disabled={isLoading}
+              trackColor={{ false: '#333', true: '#3B82F6' }}
+              thumbColor={smartNotificationsEnabled ? '#fff' : '#888'}
+              ios_backgroundColor="#333"
+            />
           </View>
-          <Text style={styles.instructionText}>
-            Simulates merchant detection for testing
-          </Text>
+          {smartNotificationsEnabled && (
+            <View style={styles.activeBadge}>
+              <View style={styles.activeDot} />
+              <Text style={styles.activeText}>Location tracking active</Text>
+            </View>
+          )}
         </View>
       </SafeAreaView>
     </View>
@@ -356,32 +418,48 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     paddingBottom: 32,
+    paddingHorizontal: 24,
   },
-  demoBadge: {
+  smartNotificationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 8,
+    backgroundColor: '#1a1a1a',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#252525',
+    width: '100%',
   },
-  demoDot: {
+  smartNotificationInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  smartNotificationTitle: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  smartNotificationDesc: {
+    color: '#6B7280',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  activeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  activeDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#10B981',
     marginRight: 8,
   },
-  demoText: {
-    color: '#F59E0B',
+  activeText: {
+    color: '#10B981',
     fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  instructionText: {
-    color: '#4B5563',
-    fontSize: 13,
+    fontWeight: '500',
   },
 });

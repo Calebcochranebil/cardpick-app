@@ -27,6 +27,7 @@ import {
   getCategoryDisplayName,
 } from '../services/locationService';
 import { getUserCardIds } from '../services/userCardsService';
+import { sendCardRecommendationNotification } from '../services/notificationService';
 
 type RootStackParamList = {
   Home: undefined;
@@ -49,7 +50,7 @@ export const RecommendationScreen: React.FC<RecommendationScreenProps> = ({
   const [alternatives, setAlternatives] = useState<Recommendation[]>([]);
   const [showMerchantPicker, setShowMerchantPicker] = useState(false);
 
-  const loadRecommendation = useCallback(async (merchantToUse: Merchant, demoMode: boolean = true) => {
+  const loadRecommendation = useCallback(async (merchantToUse: Merchant, demoMode: boolean = true, showNotification: boolean = false) => {
     setMerchant(merchantToUse);
     setIsDemo(demoMode);
 
@@ -71,6 +72,11 @@ export const RecommendationScreen: React.FC<RecommendationScreenProps> = ({
         bestCard.card.id
       );
       setAlternatives(alts);
+
+      // Send notification when merchant is selected
+      if (showNotification) {
+        sendCardRecommendationNotification(merchantToUse, bestCard);
+      }
     }
   }, []);
 
@@ -96,7 +102,7 @@ export const RecommendationScreen: React.FC<RecommendationScreenProps> = ({
   }, [detectLocation]);
 
   const handleMerchantSelect = async (selectedMerchant: Merchant) => {
-    await loadRecommendation(selectedMerchant, isDemo);
+    await loadRecommendation(selectedMerchant, isDemo, true);
   };
 
   const handleOpenWallet = async () => {
@@ -123,7 +129,7 @@ export const RecommendationScreen: React.FC<RecommendationScreenProps> = ({
 
   const handleNextMerchant = () => {
     const nextMerchant = getNextDemoMerchant();
-    loadRecommendation(nextMerchant, true);
+    loadRecommendation(nextMerchant, true, true);
   };
 
   const handleGoBack = () => {
@@ -268,7 +274,7 @@ export const RecommendationScreen: React.FC<RecommendationScreenProps> = ({
                 onPress={() => {
                   setDemoCategory(category);
                   const newMerchant = getRandomMerchant(category);
-                  loadRecommendation(newMerchant, true);
+                  loadRecommendation(newMerchant, true, true);
                 }}
               >
                 <Text

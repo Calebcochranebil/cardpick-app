@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "cardpick-app",
-    "slug": "cardpick-app",
+    "name": "Stax",
+    "slug": "stax-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,21 +10,74 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stax.app",
+      "infoPlist": {
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Stax uses your location to detect nearby stores and recommend the best credit card to maximize your rewards.",
+        "NSLocationAlwaysUsageDescription": "Stax uses your location in the background to notify you which card to use when you arrive at stores.",
+        "NSLocationWhenInUseUsageDescription": "Stax uses your location to find nearby stores and recommend the best card.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "remote-notification",
+          "location",
+          "fetch",
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.stax.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#3B82F6"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Stax uses your location to detect nearby stores and recommend the best credit card.",
+          "locationAlwaysPermission": "Stax needs background location to notify you which card to use when you arrive at stores.",
+          "locationWhenInUsePermission": "Stax uses your location to find nearby stores.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isIosBackgroundLocationEnabled": true
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "aca467b7-fa59-4747-94a4-7027a5f1614b"
+      }
     }
   }
 }

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserCard, UserWallet } from '../types';
 
-const STORAGE_KEY = '@cardpick_wallet';
+const STORAGE_KEY = '@stax_wallet';
 
 const DEFAULT_WALLET: UserWallet = {
   cards: [],

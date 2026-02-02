@@ -131,6 +131,44 @@ export const getAlternativeCards = (
     .slice(0, 3);
 };
 
+export const getBestCardOverall = (
+  merchant: Merchant,
+  userCardIds: string[]
+): Recommendation | null => {
+  // Find the best card from ALL cards that the user does NOT own
+  const nonOwnedCards = CREDIT_CARDS.filter(
+    (card) => !userCardIds.includes(card.id)
+  );
+
+  if (nonOwnedCards.length === 0) return null;
+
+  // Get user's best multiplier for comparison
+  const userBest = getBestCard(merchant, userCardIds);
+  const userBestMultiplier = userBest?.multiplier ?? 0;
+
+  let bestCard: CreditCard | null = null;
+  let bestMultiplier = 0;
+
+  for (const card of nonOwnedCards) {
+    const multiplier = getMultiplierForCard(card, merchant.category);
+    if (multiplier > bestMultiplier) {
+      bestMultiplier = multiplier;
+      bestCard = card;
+    }
+  }
+
+  // Only return if it beats the user's best card
+  if (!bestCard || bestMultiplier <= userBestMultiplier) return null;
+
+  return {
+    card: bestCard,
+    merchant,
+    multiplier: bestMultiplier,
+    estimatedReward: calculateEstimatedReward(bestMultiplier, bestCard.rewardType),
+    reason: getRewardDescription(bestCard, merchant.category),
+  };
+};
+
 export const getAllCardsRanked = (
   merchant: Merchant,
   userCardIds: string[]

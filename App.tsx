@@ -6,13 +6,25 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 
-import { HomeScreen, RecommendationScreen, MyCardsScreen, OnboardingScreen } from './src/screens';
+import {
+  HomeScreen,
+  RecommendationScreen,
+  MyCardsScreen,
+  OnboardingScreen,
+  CardDetailScreen,
+  LoginScreen,
+  SettingsScreen,
+} from './src/screens';
 import { isOnboardingComplete, setOnboardingComplete } from './src/services/onboardingService';
 import { CardProvider } from './src/context/CardContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 
 type RootStackParamList = {
   MainTabs: undefined;
   Recommendation: undefined;
+  CardDetail: { cardId: string };
+  Login: undefined;
+  Settings: undefined;
 };
 
 type TabParamList = {
@@ -31,7 +43,6 @@ const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => {
       case 'Find':
         return (
           <View style={styles.tabIconWrapper}>
-            {/* Dollar sign with signal waves */}
             <View style={[styles.findIcon, focused && styles.findIconFocused]}>
               <Text style={[styles.dollarText, { color }]}>$</Text>
             </View>
@@ -40,7 +51,6 @@ const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => {
       case 'Cards':
         return (
           <View style={styles.tabIconWrapper}>
-            {/* Stacked cards icon */}
             <View style={styles.walletIcon}>
               <View style={[styles.walletCard, styles.walletCardBack, { borderColor: color }]} />
               <View style={[styles.walletCard, styles.walletCardFront, { borderColor: color, backgroundColor: focused ? 'rgba(59,130,246,0.15)' : 'transparent' }]} />
@@ -98,7 +108,8 @@ const MainTabs = () => {
   );
 };
 
-export default function App() {
+const AppNavigator = () => {
+  const { session, isLoading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -117,7 +128,7 @@ export default function App() {
     setShowOnboarding(false);
   };
 
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3B82F6" />
@@ -127,68 +138,88 @@ export default function App() {
 
   if (showOnboarding) {
     return (
-      <SafeAreaProvider>
-        <CardProvider>
-          <StatusBar style="light" />
-          <OnboardingScreen onComplete={handleOnboardingComplete} />
-        </CardProvider>
-      </SafeAreaProvider>
+      <>
+        <StatusBar style="light" />
+        <OnboardingScreen onComplete={handleOnboardingComplete} />
+      </>
     );
   }
 
+  // Auth gate disabled for now — go straight to app
+  // if (!session) {
+  //   return (
+  //     <>
+  //       <StatusBar style="light" />
+  //       <LoginScreen />
+  //     </>
+  //   );
+  // }
+
   return (
-    <SafeAreaProvider>
-      <CardProvider>
-        <NavigationContainer
-        theme={{
-          dark: true,
-          fonts: {
-            regular: {
-              fontFamily: 'System',
-              fontWeight: '400',
-            },
-            medium: {
-              fontFamily: 'System',
-              fontWeight: '500',
-            },
-            bold: {
-              fontFamily: 'System',
-              fontWeight: '700',
-            },
-            heavy: {
-              fontFamily: 'System',
-              fontWeight: '800',
-            },
-          },
-          colors: {
-            primary: '#3B82F6',
-            background: '#000',
-            card: '#000',
-            text: '#fff',
-            border: '#1a1a1a',
-            notification: '#3B82F6',
-          },
+    <NavigationContainer
+      theme={{
+        dark: true,
+        fonts: {
+          regular: { fontFamily: 'System', fontWeight: '400' },
+          medium: { fontFamily: 'System', fontWeight: '500' },
+          bold: { fontFamily: 'System', fontWeight: '700' },
+          heavy: { fontFamily: 'System', fontWeight: '800' },
+        },
+        colors: {
+          primary: '#3B82F6',
+          background: '#000',
+          card: '#000',
+          text: '#fff',
+          border: '#1a1a1a',
+          notification: '#3B82F6',
+        },
+      }}
+    >
+      <StatusBar style="light" />
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#000' },
         }}
       >
-        <StatusBar style="light" />
-        <Stack.Navigator
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: '#000' },
+        <Stack.Screen name="MainTabs" component={MainTabs} />
+        <Stack.Screen
+          name="Recommendation"
+          component={RecommendationScreen}
+          options={{
+            presentation: 'card',
+            animation: 'slide_from_bottom',
           }}
-        >
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen
-            name="Recommendation"
-            component={RecommendationScreen}
-            options={{
-              presentation: 'card',
-              animation: 'slide_from_bottom',
-            }}
-          />
-        </Stack.Navigator>
-        </NavigationContainer>
-      </CardProvider>
+        />
+        <Stack.Screen
+          name="CardDetail"
+          component={CardDetailScreen}
+          options={{
+            presentation: 'card',
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{
+            presentation: 'card',
+            animation: 'slide_from_right',
+          }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+};
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AuthProvider>
+        <CardProvider>
+          <AppNavigator />
+        </CardProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
@@ -219,7 +250,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textAlign: 'center',
   },
-  // Find tab icon
   findIcon: {
     width: 32,
     height: 32,
@@ -237,7 +267,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  // Wallet tab icon
   walletIcon: {
     width: 28,
     height: 22,

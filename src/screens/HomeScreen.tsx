@@ -18,6 +18,7 @@ import {
   stopBackgroundLocationTracking,
   isBackgroundTrackingActive,
 } from '../services/geofencingService';
+import { hapticTap } from '../services/hapticsService';
 
 type RootStackParamList = {
   Home: undefined;
@@ -162,6 +163,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   }, []);
 
   const handleTap = () => {
+    hapticTap();
     navigation.navigate('Recommendation');
   };
 

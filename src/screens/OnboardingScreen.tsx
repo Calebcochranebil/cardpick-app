@@ -7,9 +7,12 @@ import {
   TouchableOpacity,
   Animated,
   FlatList,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -51,8 +54,10 @@ interface OnboardingScreenProps {
 
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [authLoading, setAuthLoading] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
+  const { signInWithGoogle, signInWithApple, continueAsGuest } = useAuth();
 
   const renderIcon = (icon: string, gradient: [string, string]) => {
     if (icon === 'cards') {
@@ -114,6 +119,20 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
         </View>
       </View>
     );
+  };
+
+  const handleAuth = async (provider: 'google' | 'apple' | 'guest') => {
+    setAuthLoading(provider);
+    try {
+      if (provider === 'google') await signInWithGoogle();
+      else if (provider === 'apple') await signInWithApple();
+      else await continueAsGuest();
+      onComplete();
+    } catch (error: any) {
+      Alert.alert('Sign In Error', error.message || 'Something went wrong');
+    } finally {
+      setAuthLoading(null);
+    }
   };
 
   const handleNext = () => {
@@ -422,5 +441,37 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '700',
+  },
+  authButtons: {
+    gap: 12,
+  },
+  googleAuthButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  googleAuthText: {
+    color: '#000',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  appleAuthButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  appleAuthText: {
+    color: '#000',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  guestText: {
+    color: '#6B7280',
+    fontSize: 15,
+    fontWeight: '500',
+    textAlign: 'center',
+    paddingVertical: 12,
   },
 });

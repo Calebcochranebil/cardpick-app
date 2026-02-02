@@ -18,6 +18,9 @@ export const CREDIT_CARDS: CreditCard[] = [
     ],
     color: '#B8860B',
     gradientColors: ['#D4AF37', '#996515'],
+    signupBonus: 'Earn 60,000 Membership Rewards points after spending $6,000 in 6 months',
+    signupBonusValue: 1200,
+    affiliateUrl: 'https://www.americanexpress.com/en-us/credit-cards/credit-intel/gold-card/',
   },
   {
     id: 'amex-platinum',
@@ -33,6 +36,9 @@ export const CREDIT_CARDS: CreditCard[] = [
     ],
     color: '#E5E4E2',
     gradientColors: ['#A8A9AD', '#71797E'],
+    signupBonus: 'Earn 80,000 Membership Rewards points after spending $8,000 in 6 months',
+    signupBonusValue: 1600,
+    affiliateUrl: 'https://www.americanexpress.com/en-us/credit-cards/credit-intel/platinum-card/',
   },
   {
     id: 'amex-blue-cash-preferred',
@@ -103,6 +109,9 @@ export const CREDIT_CARDS: CreditCard[] = [
     ],
     color: '#0A1172',
     gradientColors: ['#1E3A8A', '#0A1172'],
+    signupBonus: 'Earn 60,000 bonus points after spending $4,000 in 3 months',
+    signupBonusValue: 750,
+    affiliateUrl: 'https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred',
   },
   {
     id: 'chase-sapphire-reserve',
@@ -119,6 +128,9 @@ export const CREDIT_CARDS: CreditCard[] = [
     ],
     color: '#1C1C1C',
     gradientColors: ['#2D2D2D', '#0D0D0D'],
+    signupBonus: 'Earn 60,000 bonus points after spending $4,000 in 3 months',
+    signupBonusValue: 900,
+    affiliateUrl: 'https://creditcards.chase.com/rewards-credit-cards/sapphire/reserve',
   },
   {
     id: 'chase-freedom-unlimited',
@@ -135,6 +147,9 @@ export const CREDIT_CARDS: CreditCard[] = [
     ],
     color: '#00A3E0',
     gradientColors: ['#00A3E0', '#0077B5'],
+    signupBonus: 'Earn $300 bonus after spending $500 in 3 months',
+    signupBonusValue: 300,
+    affiliateUrl: 'https://creditcards.chase.com/cash-back-credit-cards/freedom/unlimited',
   },
   {
     id: 'chase-freedom-flex',
@@ -221,6 +236,9 @@ export const CREDIT_CARDS: CreditCard[] = [
     ],
     color: '#1A1A1A',
     gradientColors: ['#2D2D2D', '#0D0D0D'],
+    signupBonus: 'Earn 75,000 bonus miles after spending $4,000 in 3 months',
+    signupBonusValue: 750,
+    affiliateUrl: 'https://www.capitalone.com/credit-cards/venture-x/',
   },
   {
     id: 'capital-one-venture',
@@ -297,6 +315,9 @@ export const CREDIT_CARDS: CreditCard[] = [
     rewardStructure: [],
     color: '#003B70',
     gradientColors: ['#004C8C', '#002855'],
+    signupBonus: 'Earn $200 cash back after spending $1,500 in 6 months',
+    signupBonusValue: 200,
+    affiliateUrl: 'https://www.citi.com/credit-cards/citi-double-cash-credit-card',
   },
   {
     id: 'citi-custom-cash',
@@ -378,6 +399,9 @@ export const CREDIT_CARDS: CreditCard[] = [
     rewardStructure: [],
     color: '#D71E28',
     gradientColors: ['#D71E28', '#8B0000'],
+    signupBonus: 'Earn $200 cash rewards bonus after spending $500 in 3 months',
+    signupBonusValue: 200,
+    affiliateUrl: 'https://www.wellsfargo.com/credit-cards/active-cash/',
   },
   {
     id: 'wells-fargo-autograph',

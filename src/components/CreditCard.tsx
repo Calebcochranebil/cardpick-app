@@ -1,11 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CreditCard as CreditCardType } from '../types';
 
 interface CreditCardProps {
   card: CreditCardType;
   size?: 'small' | 'medium' | 'large';
+  onPress?: () => void;
+  onLongPress?: () => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -13,6 +15,8 @@ const { width } = Dimensions.get('window');
 export const CreditCard: React.FC<CreditCardProps> = ({
   card,
   size = 'medium',
+  onPress,
+  onLongPress,
 }) => {
   const cardWidth =
     size === 'large' ? width - 48 : size === 'medium' ? width - 80 : 160;
@@ -87,8 +91,11 @@ export const CreditCard: React.FC<CreditCardProps> = ({
     );
   };
 
+  const Wrapper = (onPress || onLongPress) ? TouchableOpacity : View;
+  const wrapperProps = (onPress || onLongPress) ? { onPress, onLongPress, activeOpacity: 0.85 } : {};
+
   return (
-    <View style={[styles.cardContainer, { width: cardWidth, height: cardHeight }]}>
+    <Wrapper {...wrapperProps} style={[styles.cardContainer, { width: cardWidth, height: cardHeight }]}>
       <LinearGradient
         colors={card.gradientColors}
         start={{ x: 0, y: 0 }}
@@ -145,7 +152,7 @@ export const CreditCard: React.FC<CreditCardProps> = ({
           </View>
         </View>
       </LinearGradient>
-    </View>
+    </Wrapper>
   );
 };
 

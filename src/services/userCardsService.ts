@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserCard, UserWallet } from '../types';
+import { supabase } from '../config/supabase';
+import { trackCardAdded, trackCardRemoved } from './analyticsService';
 
 const STORAGE_KEY = '@stax_wallet';
 
@@ -87,6 +89,7 @@ export const addCard = async (cardId: string): Promise<boolean> => {
     }
 
     await saveWallet(wallet);
+    trackCardAdded(cardId);
     return true;
   } catch (error) {
     console.error('Error adding card:', error);
@@ -111,6 +114,7 @@ export const removeCard = async (cardId: string): Promise<boolean> => {
     }
 
     await saveWallet(wallet);
+    trackCardRemoved(cardId);
     return true;
   } catch (error) {
     console.error('Error removing card:', error);
@@ -152,4 +156,52 @@ export const clearWallet = async (): Promise<void> => {
 export const resetToDefaults = async (): Promise<UserWallet> => {
   await clearWallet();
   return initializeDefaultWallet();
+};
+
+export const syncWalletToSupabase = async (userId: string): Promise<void> => {
+  try {
+    const wallet = await getWallet();
+    const rows = wallet.cards.map((card) => ({
+      user_id: userId,
+      card_id: card.cardId,
+      added_at: card.addedAt.toISOString(),
+      is_default: card.cardId === wallet.defaultCardId,
+    }));
+
+    if (rows.length === 0) return;
+
+    await supabase
+      .from('user_wallets')
+      .upsert(rows, { onConflict: 'user_id,card_id' });
+  } catch (error) {
+    console.warn('Wallet sync to Supabase failed:', error);
+  }
+};
+
+export const syncWalletFromSupabase = async (userId: string): Promise<void> => {
+  try {
+    const { data, error } = await supabase
+      .from('user_wallets')
+      .select('*')
+      .eq('user_id', userId)
+      .order('added_at', { ascending: true });
+
+    if (error || !data || data.length === 0) return;
+
+    const cards: UserCard[] = data.map((row: any) => ({
+      cardId: row.card_id,
+      addedAt: new Date(row.added_at),
+    }));
+
+    const defaultRow = data.find((row: any) => row.is_default);
+
+    const wallet: UserWallet = {
+      cards,
+      defaultCardId: defaultRow?.card_id || cards[0]?.cardId,
+    };
+
+    await saveWallet(wallet);
+  } catch (error) {
+    console.warn('Wallet sync from Supabase failed:', error);
+  }
 };

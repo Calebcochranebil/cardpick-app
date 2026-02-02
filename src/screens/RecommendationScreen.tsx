@@ -5,18 +5,19 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Linking,
   Platform,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CreditCard, PointsBadge, AlternativeCards, MerchantPicker } from '../components';
+import { CreditCard, PointsBadge, AlternativeCards, MerchantPicker, SkeletonLoader } from '../components';
 import { Merchant, Recommendation } from '../types';
 import {
   getBestCard,
   getAlternativeCards,
+  getBestCardOverall,
 } from '../services/recommendationEngine';
 import {
   detectNearbyMerchants,
@@ -28,11 +29,16 @@ import {
 } from '../services/locationService';
 import { getUserCardIds } from '../services/userCardsService';
 import { sendCardRecommendationNotification } from '../services/notificationService';
+import { trackUpsellTapped } from '../services/analyticsService';
+import { hapticTap } from '../services/hapticsService';
+
+const { width } = Dimensions.get('window');
 
 type RootStackParamList = {
   Home: undefined;
   Recommendation: undefined;
   MyCards: undefined;
+  CardDetail: { cardId: string };
 };
 
 type RecommendationScreenProps = {
@@ -48,6 +54,7 @@ export const RecommendationScreen: React.FC<RecommendationScreenProps> = ({
   const [isDemo, setIsDemo] = useState(true);
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [alternatives, setAlternatives] = useState<Recommendation[]>([]);
+  const [upsell, setUpsell] = useState<Recommendation | null>(null);
   const [showMerchantPicker, setShowMerchantPicker] = useState(false);
 
   const loadRecommendation = useCallback(async (merchantToUse: Merchant, demoMode: boolean = true, showNotification: boolean = false) => {
@@ -59,6 +66,7 @@ export const RecommendationScreen: React.FC<RecommendationScreenProps> = ({
     if (userCardIds.length === 0) {
       setRecommendation(null);
       setAlternatives([]);
+      setUpsell(null);
       return;
     }
 
@@ -73,10 +81,16 @@ export const RecommendationScreen: React.FC<RecommendationScreenProps> = ({
       );
       setAlternatives(alts);
 
+      // Check for a better card the user doesn't own
+      const betterCard = getBestCardOverall(merchantToUse, userCardIds);
+      setUpsell(betterCard);
+
       // Send notification when merchant is selected
       if (showNotification) {
         sendCardRecommendationNotification(merchantToUse, bestCard);
       }
+    } else {
+      setUpsell(null);
     }
   }, []);
 
@@ -139,10 +153,30 @@ export const RecommendationScreen: React.FC<RecommendationScreenProps> = ({
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <View style={styles.loadingPulse} />
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Finding nearby places...</Text>
+        <View style={styles.skeletonContainer}>
+          <View style={styles.skeletonHeader}>
+            <SkeletonLoader width={40} height={40} borderRadius={20} />
+            <SkeletonLoader width={120} height={20} borderRadius={8} />
+            <View style={{ width: 40 }} />
+          </View>
+          <View style={styles.skeletonMerchant}>
+            <SkeletonLoader width={width - 32} height={80} borderRadius={16} />
+          </View>
+          <View style={styles.skeletonCard}>
+            <SkeletonLoader width={80} height={14} borderRadius={6} />
+            <View style={{ marginTop: 16 }}>
+              <SkeletonLoader width={width - 80} height={(width - 80) * 0.63} borderRadius={14} />
+            </View>
+          </View>
+          <View style={styles.skeletonDetails}>
+            <SkeletonLoader width={160} height={36} borderRadius={18} />
+            <View style={{ marginTop: 12 }}>
+              <SkeletonLoader width={220} height={16} borderRadius={8} />
+            </View>
+            <View style={{ marginTop: 8 }}>
+              <SkeletonLoader width={140} height={14} borderRadius={8} />
+            </View>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -219,7 +253,7 @@ export const RecommendationScreen: React.FC<RecommendationScreenProps> = ({
 
           <View style={styles.cardWrapper}>
             <View style={styles.cardGlow} />
-            <CreditCard card={recommendation.card} size="large" />
+            <CreditCard card={recommendation.card} size="large" onPress={() => navigation.navigate('CardDetail', { cardId: recommendation.card.id })} />
           </View>
 
           <View style={styles.rewardBadge}>
@@ -246,8 +280,35 @@ export const RecommendationScreen: React.FC<RecommendationScreenProps> = ({
           </TouchableOpacity>
         </View>
 
+        {/* Upsell - Better Card Available */}
+        {upsell && (
+          <TouchableOpacity
+            style={styles.upsellCard}
+            onPress={() => {
+              hapticTap();
+              trackUpsellTapped(upsell.card.id, merchant?.category);
+              navigation.navigate('CardDetail', { cardId: upsell.card.id });
+            }}
+            activeOpacity={0.8}
+          >
+            <View style={styles.upsellBadge}>
+              <Text style={styles.upsellBadgeText}>EARN MORE</Text>
+            </View>
+            <Text style={styles.upsellTitle}>
+              {upsell.card.issuer} {upsell.card.name}
+            </Text>
+            <Text style={styles.upsellMultiplier}>
+              {upsell.multiplier}x {upsell.card.rewardType} here vs your {recommendation?.multiplier}x
+            </Text>
+            <Text style={styles.upsellReason}>{upsell.reason}</Text>
+            <View style={styles.upsellApply}>
+              <Text style={styles.upsellApplyText}>Learn More & Apply</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Alternative Cards */}
-        <AlternativeCards alternatives={alternatives} />
+        <AlternativeCards alternatives={alternatives} onCardPress={(rec) => navigation.navigate('CardDetail', { cardId: rec.card.id })} />
 
         {/* Refresh Button */}
         <TouchableOpacity
@@ -322,22 +383,28 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
-  loadingContainer: {
+  skeletonContainer: {
     flex: 1,
+    paddingTop: 12,
+  },
+  skeletonHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  loadingPulse: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+  skeletonMerchant: {
+    alignItems: 'center',
+    marginTop: 8,
   },
-  loadingText: {
-    color: '#6B7280',
-    fontSize: 16,
-    marginTop: 20,
+  skeletonCard: {
+    alignItems: 'center',
+    marginTop: 32,
+  },
+  skeletonDetails: {
+    alignItems: 'center',
+    marginTop: 24,
   },
   emptyContainer: {
     flex: 1,
@@ -525,6 +592,57 @@ const styles = StyleSheet.create({
   walletButtonText: {
     color: '#000',
     fontSize: 17,
+    fontWeight: '700',
+  },
+  upsellCard: {
+    marginTop: 24,
+    marginHorizontal: 16,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  upsellBadge: {
+    backgroundColor: '#10B981',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  upsellBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  upsellTitle: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  upsellMultiplier: {
+    color: '#10B981',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  upsellReason: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  upsellApply: {
+    backgroundColor: '#10B981',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  upsellApplyText: {
+    color: '#fff',
+    fontSize: 15,
     fontWeight: '700',
   },
   refreshButton: {

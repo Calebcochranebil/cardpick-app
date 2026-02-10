@@ -7,12 +7,9 @@ import {
   TouchableOpacity,
   Animated,
   FlatList,
-  ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAuth } from '../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -54,10 +51,8 @@ interface OnboardingScreenProps {
 
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [authLoading, setAuthLoading] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
-  const { signInWithGoogle, signInWithApple, continueAsGuest } = useAuth();
 
   const renderIcon = (icon: string, gradient: [string, string]) => {
     if (icon === 'cards') {
@@ -119,20 +114,6 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
         </View>
       </View>
     );
-  };
-
-  const handleAuth = async (provider: 'google' | 'apple' | 'guest') => {
-    setAuthLoading(provider);
-    try {
-      if (provider === 'google') await signInWithGoogle();
-      else if (provider === 'apple') await signInWithApple();
-      else await continueAsGuest();
-      onComplete();
-    } catch (error: any) {
-      Alert.alert('Sign In Error', error.message || 'Something went wrong');
-    } finally {
-      setAuthLoading(null);
-    }
   };
 
   const handleNext = () => {

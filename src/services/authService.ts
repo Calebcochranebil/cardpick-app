@@ -1,144 +1,67 @@
-import { makeRedirectUri } from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
-import * as Application from 'expo-application';
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../config/supabase';
 
-WebBrowser.maybeCompleteAuthSession();
+const USER_PROFILE_KEY = '@stax_user_profile';
+const SESSION_EXPIRY_DAYS = 30;
 
-const DEVICE_ID_KEY = '@stax_device_id';
+export interface UserProfile {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  createdAt: string;
+  loginAt: string;
+}
 
-const getRedirectUrl = () => {
-  // In Expo Go, use the Expo auth proxy; in dev builds / standalone, use the native scheme
-  const isExpoGo = Constants.appOwnership === 'expo';
-  return makeRedirectUri({
-    scheme: isExpoGo ? undefined : 'com.stax.app',
-    path: 'auth/callback',
-  });
-};
+export const signUp = async (profile: Omit<UserProfile, 'createdAt' | 'loginAt'>): Promise<UserProfile> => {
+  const now = new Date().toISOString();
+  const fullProfile: UserProfile = {
+    ...profile,
+    createdAt: now,
+    loginAt: now,
+  };
 
-export const getDeviceId = async (): Promise<string> => {
-  // Try stored ID first
-  const stored = await AsyncStorage.getItem(DEVICE_ID_KEY);
-  if (stored) return stored;
-
-  // Generate from platform identifiers
-  let deviceId: string;
-  if (Platform.OS === 'ios') {
-    deviceId = (await Application.getIosIdForVendorAsync()) || '';
-  } else {
-    deviceId = Application.getAndroidId() || '';
-  }
-
-  // Fallback to random ID
-  if (!deviceId) {
-    deviceId = `device_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  }
-
-  await AsyncStorage.setItem(DEVICE_ID_KEY, deviceId);
-  return deviceId;
-};
-
-export const signInWithGoogle = async () => {
-  const redirectUrl = getRedirectUrl();
-  console.log('OAuth redirect URL:', redirectUrl);
-
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: redirectUrl,
-      skipBrowserRedirect: true,
-    },
-  });
-
-  if (error) throw error;
-  if (!data.url) throw new Error('No OAuth URL returned');
-
-  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-
-  if (result.type === 'success') {
-    const url = new URL(result.url);
-    // Handle fragment-based response (#access_token=...)
-    const params = new URLSearchParams(
-      url.hash ? url.hash.substring(1) : url.search.substring(1)
+  // Save to Supabase
+  try {
+    await supabase.from('profiles').upsert(
+      {
+        email: profile.email,
+        first_name: profile.firstName,
+        last_name: profile.lastName,
+        phone: profile.phone,
+        created_at: now,
+        last_login_at: now,
+      },
+      { onConflict: 'email' }
     );
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
-
-    if (accessToken) {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || '',
-        });
-      if (sessionError) throw sessionError;
-      return sessionData.session;
-    }
+  } catch (error) {
+    console.warn('Failed to save profile to Supabase:', error);
   }
 
-  return null;
+  // Save locally so they stay logged in
+  await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(fullProfile));
+  return fullProfile;
 };
 
-export const signInWithApple = async () => {
-  const redirectUrl = getRedirectUrl();
+export const getUserProfile = async (): Promise<UserProfile | null> => {
+  const stored = await AsyncStorage.getItem(USER_PROFILE_KEY);
+  if (!stored) return null;
 
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'apple',
-    options: {
-      redirectTo: redirectUrl,
-      skipBrowserRedirect: true,
-    },
-  });
+  const profile = JSON.parse(stored) as UserProfile;
 
-  if (error) throw error;
-  if (!data.url) throw new Error('No OAuth URL returned');
+  // Check if session has expired (30 days)
+  const loginDate = new Date(profile.loginAt).getTime();
+  const now = Date.now();
+  const daysSinceLogin = (now - loginDate) / (1000 * 60 * 60 * 24);
 
-  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-
-  if (result.type === 'success') {
-    const url = new URL(result.url);
-    const params = new URLSearchParams(
-      url.hash ? url.hash.substring(1) : url.search.substring(1)
-    );
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
-
-    if (accessToken) {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || '',
-        });
-      if (sessionError) throw sessionError;
-      return sessionData.session;
-    }
+  if (daysSinceLogin > SESSION_EXPIRY_DAYS) {
+    await AsyncStorage.removeItem(USER_PROFILE_KEY);
+    return null;
   }
 
-  return null;
-};
-
-export const signInAnonymously = async () => {
-  const deviceId = await getDeviceId();
-
-  const { data, error } = await supabase.auth.signInAnonymously({
-    options: {
-      data: { device_id: deviceId },
-    },
-  });
-
-  if (error) throw error;
-  return data.session;
+  return profile;
 };
 
 export const signOut = async () => {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
-};
-
-export const getSession = async () => {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  return data.session;
+  await AsyncStorage.removeItem(USER_PROFILE_KEY);
 };

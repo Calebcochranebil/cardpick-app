@@ -109,7 +109,7 @@ const MainTabs = () => {
 };
 
 const AppNavigator = () => {
-  const { session, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -145,15 +145,14 @@ const AppNavigator = () => {
     );
   }
 
-  // Auth gate disabled for now — go straight to app
-  // if (!session) {
-  //   return (
-  //     <>
-  //       <StatusBar style="light" />
-  //       <LoginScreen />
-  //     </>
-  //   );
-  // }
+  if (!user) {
+    return (
+      <>
+        <StatusBar style="light" />
+        <LoginScreen />
+      </>
+    );
+  }
 
   return (
     <NavigationContainer

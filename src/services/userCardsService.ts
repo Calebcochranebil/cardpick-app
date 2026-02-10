@@ -158,11 +158,11 @@ export const resetToDefaults = async (): Promise<UserWallet> => {
   return initializeDefaultWallet();
 };
 
-export const syncWalletToSupabase = async (userId: string): Promise<void> => {
+export const syncWalletToSupabase = async (userEmail: string): Promise<void> => {
   try {
     const wallet = await getWallet();
     const rows = wallet.cards.map((card) => ({
-      user_id: userId,
+      user_email: userEmail,
       card_id: card.cardId,
       added_at: card.addedAt.toISOString(),
       is_default: card.cardId === wallet.defaultCardId,
@@ -172,18 +172,18 @@ export const syncWalletToSupabase = async (userId: string): Promise<void> => {
 
     await supabase
       .from('user_wallets')
-      .upsert(rows, { onConflict: 'user_id,card_id' });
+      .upsert(rows, { onConflict: 'user_email,card_id' });
   } catch (error) {
     console.warn('Wallet sync to Supabase failed:', error);
   }
 };
 
-export const syncWalletFromSupabase = async (userId: string): Promise<void> => {
+export const syncWalletFromSupabase = async (userEmail: string): Promise<void> => {
   try {
     const { data, error } = await supabase
       .from('user_wallets')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_email', userEmail)
       .order('added_at', { ascending: true });
 
     if (error || !data || data.length === 0) return;

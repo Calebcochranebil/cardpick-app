@@ -19,7 +19,7 @@ type RootStackParamList = {
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
 export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
-  const { user, isAnonymous, signInWithGoogle, signInWithApple, signOut } = useAuth();
+  const { user, signOut } = useAuth();
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure?', [
@@ -47,22 +47,6 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
     );
   };
 
-  const handleUpgradeGoogle = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Sign in failed');
-    }
-  };
-
-  const handleUpgradeApple = async () => {
-    try {
-      await signInWithApple();
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Sign in failed');
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -81,36 +65,17 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>ACCOUNT</Text>
         <View style={styles.card}>
-          {isAnonymous || !user ? (
+          {user ? (
             <>
-              <Text style={styles.label}>Signed in as</Text>
-              <Text style={styles.value}>Guest</Text>
-              <View style={styles.upgradeButtons}>
-                <TouchableOpacity
-                  style={styles.upgradeButton}
-                  onPress={handleUpgradeGoogle}
-                >
-                  <Text style={styles.upgradeButtonText}>Sign in with Google</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.upgradeButton}
-                  onPress={handleUpgradeApple}
-                >
-                  <Text style={styles.upgradeButtonText}>Sign in with Apple</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.label}>Name</Text>
+              <Text style={styles.value}>{user.firstName} {user.lastName}</Text>
+              <Text style={[styles.label, { marginTop: 16 }]}>Email</Text>
+              <Text style={styles.value}>{user.email}</Text>
+              <Text style={[styles.label, { marginTop: 16 }]}>Phone</Text>
+              <Text style={styles.value}>{user.phone}</Text>
             </>
           ) : (
-            <>
-              <Text style={styles.label}>Email</Text>
-              <Text style={styles.value}>{user.email}</Text>
-              {user.user_metadata?.full_name && (
-                <>
-                  <Text style={[styles.label, { marginTop: 16 }]}>Name</Text>
-                  <Text style={styles.value}>{user.user_metadata.full_name}</Text>
-                </>
-              )}
-            </>
+            <Text style={styles.value}>Not signed in</Text>
           )}
         </View>
       </View>
@@ -121,14 +86,12 @@ export const SettingsScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity style={styles.actionRow} onPress={handleReset}>
           <Text style={styles.actionText}>Reset Wallet</Text>
         </TouchableOpacity>
-        {user && !isAnonymous && (
-          <TouchableOpacity
-            style={[styles.actionRow, styles.destructiveRow]}
-            onPress={handleSignOut}
-          >
-            <Text style={styles.destructiveText}>Sign Out</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={[styles.actionRow, styles.destructiveRow]}
+          onPress={handleSignOut}
+        >
+          <Text style={styles.destructiveText}>Sign Out</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -195,21 +158,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     marginTop: 4,
-  },
-  upgradeButtons: {
-    marginTop: 16,
-    gap: 10,
-  },
-  upgradeButton: {
-    backgroundColor: '#fff',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  upgradeButtonText: {
-    color: '#000',
-    fontSize: 15,
-    fontWeight: '600',
   },
   actionRow: {
     backgroundColor: '#1a1a1a',

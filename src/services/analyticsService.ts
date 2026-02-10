@@ -1,5 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../config/supabase';
-import { getDeviceId } from './authService';
+import { getUserProfile } from './authService';
+
+const DEVICE_ID_KEY = '@stax_device_id';
 
 type EventType =
   | 'card_added'
@@ -10,18 +13,25 @@ type EventType =
   | 'sign_in'
   | 'sign_out';
 
+const getDeviceId = async (): Promise<string> => {
+  const stored = await AsyncStorage.getItem(DEVICE_ID_KEY);
+  if (stored) return stored;
+
+  const deviceId = `device_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  await AsyncStorage.setItem(DEVICE_ID_KEY, deviceId);
+  return deviceId;
+};
+
 const trackEvent = async (
   eventType: EventType,
   eventData: Record<string, any> = {}
 ) => {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const profile = await getUserProfile();
     const deviceId = await getDeviceId();
 
     await supabase.from('analytics_events').insert({
-      user_id: session?.user?.id || null,
+      user_email: profile?.email || null,
       device_id: deviceId,
       event_type: eventType,
       event_data: eventData,
